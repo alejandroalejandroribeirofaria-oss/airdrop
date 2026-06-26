@@ -371,7 +371,7 @@ app.post('/api/game/spin', auth, spinLimiter, (req, res) => {
     message,
     balance: {
       bonusBalance: user.bonusBalance,
-      solBalance: user.solBalance
+      stkBalance: user.stkBalance
     },
     verification: resultHash
   });
@@ -400,27 +400,27 @@ app.post('/api/wallet/withdraw', auth, (req, res) => {
     return res.status(400).json({ error: 'Invalid amount' });
   }
 
-  const solPrice = 170; // Mock SOL price in USD
+  const solPrice = 170; // Mock Stk price in USD
   const usdValue = numAmount * solPrice;
 
   if (usdValue < MIN_WITHDRAW_USD) {
     return res.status(400).json({
-      error: `Minimum withdrawal is $${MIN_WITHDRAW_USD} USD (≈${(MIN_WITHDRAW_USD / solPrice).toFixed(4)} SOL)`
+      error: `Minimum withdrawal is $${MIN_WITHDRAW_USD} USD (≈${(MIN_WITHDRAW_USD / stkPrice).toFixed(4)} Stk)`
     });
   }
 
-  if (numAmount > user.solBalance) {
-    return res.status(400).json({ error: 'Insufficient SOL balance' });
+  if (numAmount > user.stkBalance) {
+    return res.status(400).json({ error: 'Insufficient Stk balance' });
   }
 
   // Deduct and queue (in production, integrate with Solana RPC)
-  user.solBalance = parseFloat((user.solBalance - numAmount).toFixed(8));
+  user.solBalance = parseFloat((user.stkBalance - numAmount).toFixed(8));
 
   res.json({
     success: true,
-    message: `Withdrawal of ${numAmount} SOL to ${cleanWallet.slice(0, 8)}... queued`,
+    message: `Withdrawal of ${numAmount} Stk to ${cleanWallet.slice(0, 8)}... queued`,
     txId: crypto.randomBytes(32).toString('hex'),
-    newBalance: user.solBalance
+    newBalance: user.stkBalance
   });
 });
 
@@ -430,15 +430,15 @@ app.get('/api/leaderboard', (req, res) => {
   for (const [, user] of users.entries()) {
     lb.push({
       username: user.username,
-      solBalance: user.solBalance,
+      stkBalance: user.stkBalance,
       totalWins: user.totalWins
     });
   }
-  lb.sort((a, b) => b.solBalance - a.solBalance);
+  lb.sort((a, b) => b.stkBalance - a.stkBalance);
   res.json(lb.slice(0, 10));
 });
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Coinhat-feeds Game Server running on port ${PORT}`);
+  console.log(`Coin-Steak Game Server running on port ${PORT}`);
 });

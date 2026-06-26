@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Coin-Steak | Card Game - Win Stk</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- LANGUAGE SELECTOR (floating) -->
+<div class="lang-selector" id="langSelector">
+  <button class="lang-toggle" onclick="toggleLangMenu()" title="Language">
+    <span id="currentLangFlag">🇺🇸</span>
+  </button>
+  <div class="lang-dropdown hidden" id="langDropdown">
+    <button onclick="setLang('en')">🇺🇸 English</button>
+    <button onclick="setLang('pt')">🇧🇷 Portugues</button>
+    <button onclick="setLang('es')">🇪🇸 Espanol</button>
+    <button onclick="setLang('ja')">🇯🇵 Japanese</button>
+    <button onclick="setLang('zh')">🇨🇳 Chinese</button>
+  </div>
+</div>
+
+<!-- LOGIN SCREEN -->
+<div id="loginScreen" class="screen active">
+  <div class="login-container">
+    <div class="logo-area">
+      <img src="logo.png" alt="Coin-Steak" class="logo-img">
+      <h1 class="logo-text">Coin<span>-Steak</span></h1>
+    </div>
+    <h2 class="tagline" data-i18n="tagline">PLAY. WIN. RECEIVE.</h2>
+    <p class="subtitle" data-i18n="subtitle">Play and win real <strong>Steak (Stk)</strong>!</p>
+
+    <!-- AUTH TABS -->
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="tabLogin" onclick="switchTab('login')" data-i18n="loginTab">Login</button>
+      <button class="auth-tab" id="tabRegister" onclick="switchTab('register')" data-i18n="registerTab">Create Account</button>
+    </div>
+
+    <div class="login-box">
+      <input type="text" id="usernameInput" data-i18n-placeholder="inputPlaceholder" placeholder="Enter your username" maxlength="20" autocomplete="off">
+      <input type="password" id="passwordInput" data-i18n-placeholder="passwordPlaceholder" placeholder="Enter your password" maxlength="30" autocomplete="off">
+      <p id="authError" class="auth-error"></p>
+      <button id="loginBtn" class="btn-primary" onclick="doAuth()">
+        <span class="btn-icon">🎮</span> <span id="authBtnText" data-i18n="loginBtn2">LOGIN</span>
+      </button>
+    </div>
+    <p class="bonus-notice" data-i18n="bonusNotice">🎁 Receive <strong>100 Hash Bonus</strong> every 24 hours!</p>
+  </div>
+</div>
+
+<!-- GAME SCREEN -->
+<div id="gameScreen" class="screen">
+  <!-- TOP BAR -->
+  <header class="top-bar">
+    <div class="top-left">
+      <span class="logo-sm"><img src="logo.png" alt="Logo" class="logo-sm-img"> Coinhat</span>
+    </div>
+    <div class="top-center">
+      <div class="balance-chip bonus">
+        <span class="bal-label">HASH</span>
+        <span id="bonusDisplay" class="bal-value">0</span>
+      </div>
+      <div class="balance-chip sol">
+        <span class="bal-label">SOL</span>
+        <span id="solDisplay" class="bal-value">0.0000</span>
+      </div>
+    </div>
+    <div class="top-right">
+      <button class="icon-btn" onclick="toggleMenu()" title="Menu">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- BONUS RENEWAL BANNER -->
+  <div id="bonusBanner" class="bonus-banner hidden">
+    <span id="bonusBannerText"></span>
+  </div>
+
+  <!-- MENU OVERLAY -->
+  <div id="menuOverlay" class="overlay hidden">
+    <div class="overlay-content">
+      <button class="close-btn" onclick="toggleMenu()">&times;</button>
+      <h3>Menu</h3>
+      <div class="menu-section">
+        <div class="user-info">
+          <span class="user-avatar">👤</span>
+          <span id="menuUsername">Player</span>
+        </div>
+        <div class="stats-grid">
+          <div class="stat"><span class="stat-val" id="menuSpins">0</span><span class="stat-lbl" data-i18n="spins">Spins</span></div>
+          <div class="stat"><span class="stat-val" id="menuWins">0</span><span class="stat-lbl" data-i18n="wins">Wins</span></div>
+          <div class="stat"><span class="stat-val" id="menuSol">0</span><span class="stat-lbl">Steak</span></div>
+        </div>
+      </div>
+      <button class="btn-withdraw" onclick="showWithdraw()">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M2 12l10 10 10-10"/></svg>
+        <span data-i18n="withdrawSol">WITHDRAW Steak</span>
+      </button>
+      <button class="btn-secondary" onclick="doLogout()" data-i18n="logout">Logout</button>
+    </div>
+  </div>
+
+  <!-- WITHDRAW OVERLAY -->
+  <div id="withdrawOverlay" class="overlay hidden">
+    <div class="overlay-content withdraw-box">
+      <button class="close-btn" onclick="closeWithdraw()">&times;</button>
+      <h3 data-i18n="withdrawSol">Withdraw SOL</h3>
+      <div class="withdraw-balance">
+        <span data-i18n="available">Available:</span>
+        <strong id="wdSolBalance">0.0000 SOL</strong>
+      </div>
+      <p class="wd-min" data-i18n="minWithdraw">Minimum: $10 USD (approx 1000.000 Stk)</p>
+      <div class="form-group">
+        <label data-i18n="walletLabel">Solana Wallet Address</label>
+        <input type="text" id="wdWallet" data-i18n-placeholder="walletPlaceholder" placeholder="Enter your SOL wallet address" autocomplete="off" maxlength="44">
+      </div>
+      <div class="form-group">
+        <label data-i18n="amountLabel">Amount (Stk)</label>
+        <input type="number" id="wdAmount" placeholder="0.0000" step="10.000" min="0" max="999">
+      </div>
+      <button class="btn-primary" onclick="doWithdraw()" data-i18n="confirmWithdraw">Confirm Withdrawal</button>
+      <p id="wdMessage" class="wd-msg"></p>
+    </div>
+  </div>
+
+  <!-- GAME AREA -->
+  <main class="game-area">
+    <div class="game-title">
+      <h2 data-i18n="cardMatch">CARD MATCH</h2>
+      <p data-i18n="matchDesc">Match 3 cards to win <strong>10.00 Stk</strong> | Avoid the JOKER!</p>
+    </div>
+
+    <div class="card-grid" id="cardGrid">
+      <div class="card" data-idx="0"><div class="card-inner"><div class="card-front">?</div><div class="card-back"></div></div></div>
+      <div class="card" data-idx="1"><div class="card-inner"><div class="card-front">?</div><div class="card-back"></div></div></div>
+      <div class="card" data-idx="2"><div class="card-inner"><div class="card-front">?</div><div class="card-back"></div></div></div>
+      <div class="card" data-idx="3"><div class="card-inner"><div class="card-front">?</div><div class="card-back"></div></div></div>
+      <div class="card" data-idx="4"><div class="card-inner"><div class="card-front">?</div><div class="card-back"></div></div></div>
+      <div class="card" data-idx="5"><div class="card-inner"><div class="card-front">?</div><div class="card-back"></div></div></div>
+      <div class="card" data-idx="6"><div class="card-inner"><div class="card-front">?</div><div class="card-back"></div></div></div>
+      <div class="card" data-idx="7"><div class="card-inner"><div class="card-front">?</div><div class="card-back"></div></div></div>
+      <div class="card" data-idx="8"><div class="card-inner"><div class="card-front">?</div><div class="card-back"></div></div></div>
+    </div>
+
+    <div class="spin-section">
+      <button id="spinBtn" class="btn-spin" onclick="doSpin()">
+        <span class="spin-icon">🎰</span> <span data-i18n="spinBtn">SPIN - 10 HASH</span>
+      </button>
+      <p class="spin-cost" data-i18n="spinCost">Each spin costs 10 Hash from your bonus</p>
+    </div>
+
+    <div id="resultMessage" class="result-msg hidden"></div>
+  </main>
+
+  <!-- RULES -->
+  <section class="rules-section">
+    <h3 data-i18n="rulesTitle">Game Rules</h3>
+    <ul>
+      <li data-i18n="rule1">Receive <strong>100 Hash</strong> bonus every 24 hours</li>
+      <li data-i18n="rule2">Each spin costs <strong>10 Hash</strong></li>
+      <li data-i18n="rule3">Match 3 cards in a row/column/diagonal to win <strong>0.01 SOL</strong></li>
+      <li data-i18n="rule4">3 JOKER cards = lose <strong>50%</strong> of your Hash bonus</li>
+      <li data-i18n="rule5">Minimum withdrawal: <strong>$10 USD</strong></li>
+      <li data-i18n="rule6">All results are calculated server-side for fairness</li>
+    </ul>
+  </section>
+</div>
+
+<script src="i18n.js"></script>
+<script src="game.js"></script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516" integrity="sha512-8DS7rgIrAmghBFwoOTujcf6D9rXvH8xm8JQ1Ja01h9QX8EzXldiszufYa4IFfKdLUKTTrnSFXLDkUEOTrZQ8Qg==" data-cf-beacon='{"version":"2024.11.0","token":"75124c326cb447fe934cde04713ae013","r":1,"server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+</body>
+</html>

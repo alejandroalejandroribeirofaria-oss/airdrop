@@ -9,7 +9,7 @@ const app = express();
 // CORS
 const allowedOrigins = process.env.NODE_ENV === 'production'
   ? ['https://airdrop-fppi.onrender.com']
-  : ['http://localhost:3000', 'https://airdrop-ua2d.onrender.com/'];
+  : ['http://localhost:3000', 'https://airdrop-ua2d.onrender.com'];
 
 app.use(cors({
   origin: allowedOrigins,

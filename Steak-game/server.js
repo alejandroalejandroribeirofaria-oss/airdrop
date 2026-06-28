@@ -8,8 +8,8 @@ const app = express();
 
 // CORS
 const allowedOrigins = process.env.NODE_ENV === 'production'
-  ? ['https://airdrop-ua2d.onrender.com']
-  : ['http://localhost:3000', 'https://airdrop-ua2d.onrender.com'];
+  ? ['https://airdrop-fppi.onrender.com']
+  : ['http://localhost:3000', 'https://airdrop-ua2d.onrender.com/'];
 
 app.use(cors({
   origin: allowedOrigins,
@@ -49,9 +49,9 @@ const users = new Map();
 const CARD_SYMBOLS = ['SOL', 'BTC', 'STK', 'BNB', 'ADA', 'DOT', 'AVAX', 'MATIC'];
 const JOKER = 'JOKER';
 const SPIN_COST = 10;
-const WIN_REWARD_STK = 10.00;           // ← Alterado conforme pedido
-const LOGIN_BONUS = 100;                // ← Hash de bônus
-const MIN_WITHDRAW_STK = 1000;          // ← Saque mínimo 1000 STK
+const WIN_REWARD_STK = 10.00;
+const LOGIN_BONUS = 100;
+const MIN_WITHDRAW_STK = 1000;
 const JOKER_PENALTY_PERCENT = 1000.0;
 const BONUS_RENEWAL_MS = 24 * 60 * 60 * 1000;
 
@@ -66,7 +66,7 @@ function secureRandomFloat() {
   return buf.readUInt32BE(0) / 0xFFFFFFFF;
 }
 
-// Bonus check
+// Bonus functions
 function checkBonusRenewal(user) {
   const now = Date.now();
   const lastBonus = user.lastBonusAt || user.createdAt;
@@ -95,9 +95,8 @@ function generateGameResult() {
 
 function generateWinningGrid() {
   const grid = [];
-  for (let i = 0; i < 9; i++) {
-    grid.push(CARD_SYMBOLS[secureRandom(CARD_SYMBOLS.length)]);
-  }
+  for (let i = 0; i < 9; i++) grid.push(CARD_SYMBOLS[secureRandom(CARD_SYMBOLS.length)]);
+  
   const lines = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
   const line = lines[secureRandom(lines.length)];
   const winSymbol = CARD_SYMBOLS[secureRandom(CARD_SYMBOLS.length)];
@@ -119,10 +118,7 @@ function generateLosingGrid() {
     }
     let hasMatch = false;
     for (const [a, b, c] of lines) {
-      if (grid[a] === grid[b] && grid[b] === grid[c]) {
-        hasMatch = true;
-        break;
-      }
+      if (grid[a] === grid[b] && grid[b] === grid[c]) hasMatch = true;
     }
     if (!hasMatch) return grid;
     attempts++;
@@ -161,11 +157,12 @@ function auth(req, res, next) {
   next();
 }
 
-// ==================== ROUTES ====================
+// ====================== AUTH ROUTES ======================
 
+// REGISTER
 app.post('/api/auth/register', authLimiter, (req, res) => {
   const { username, password } = req.body;
-  // ... (validações mantidas)
+  
   if (!username || username.length < 3 || username.length > 20) {
     return res.status(400).json({ error: 'Username must be 3-20 characters' });
   }
@@ -216,8 +213,59 @@ app.post('/api/auth/register', authLimiter, (req, res) => {
   });
 });
 
-app.post('/api/auth/login', authLimiter, (req, res) => { /* mantido igual, só corrigi stkBalance */ });
+// LOGIN
+app.post('/api/auth/login', authLimiter, (req, res) => {
+  const { username, password } = req.body;
+  
+  if (!username || username.length < 3) {
+    return res.status(400).json({ error: 'Username must be at least 3 characters' });
+  }
+  if (!password) {
+    return res.status(400).json({ error: 'Password is required' });
+  }
 
+  let userId = null;
+  for (const [id, user] of users.entries()) {
+    if (user.username.toLowerCase() === username.toLowerCase()) {
+      userId = id;
+      break;
+    }
+  }
+
+  if (!userId) {
+    return res.status(404).json({ error: 'Account not found. Please create an account first.' });
+  }
+
+  const user = users.get(userId);
+  const passHash = crypto.createHash('sha256').update(password).digest('hex');
+
+  if (user.password && user.password !== passHash) {
+    return res.status(401).json({ error: 'Incorrect password' });
+  }
+
+  const token = crypto.randomBytes(32).toString('hex');
+  sessions.set(token, userId);
+
+  const bonusRenewed = checkBonusRenewal(user);
+  const timeLeft = getBonusTimeLeft(user);
+
+  res.json({
+    token,
+    user: {
+      username: user.username,
+      bonusBalance: user.bonusBalance,
+      stkBalance: user.stkBalance,
+      totalSpins: user.totalSpins,
+      totalWins: user.totalWins
+    },
+    isNew: false,
+    loginBonus: bonusRenewed ? LOGIN_BONUS : 0,
+    bonusRenewed,
+    bonusTimeLeft: timeLeft
+  });
+});
+
+// Get user
 app.get('/api/user', auth, (req, res) => {
   const u = req.user;
   checkBonusRenewal(u);
@@ -230,6 +278,8 @@ app.get('/api/user', auth, (req, res) => {
     bonusTimeLeft: getBonusTimeLeft(u)
   });
 });
+
+// SPIN, WITHDRAW e LEADERBOARD permanecem iguais ao anterior
 
 // SPIN
 app.post('/api/game/spin', auth, spinLimiter, (req, res) => {
@@ -265,9 +315,7 @@ app.post('/api/game/spin', auth, spinLimiter, (req, res) => {
     user.stkBalance = parseFloat((user.stkBalance + stkWon).toFixed(8));
     user.totalWins += result.wins.length;
     message += (message ? ' | ' : '') + `WIN! +${stkWon} STK`;
-  }
-
-  if (!result.jokerLoss && result.wins.length === 0) {
+  } else if (!result.jokerLoss) {
     message = 'No match. Try again!';
   }
 
@@ -280,10 +328,7 @@ app.post('/api/game/spin', auth, spinLimiter, (req, res) => {
     grid,
     result: { wins: result.wins, jokerLoss: result.jokerLoss, stkWon, bonusLost },
     message,
-    balance: {
-      bonusBalance: user.bonusBalance,
-      stkBalance: user.stkBalance
-    },
+    balance: { bonusBalance: user.bonusBalance, stkBalance: user.stkBalance },
     verification: resultHash
   });
 });
@@ -295,11 +340,8 @@ app.post('/api/wallet/withdraw', auth, (req, res) => {
 
   const numAmount = parseFloat(amount);
   if (isNaN(numAmount) || numAmount < MIN_WITHDRAW_STK) {
-    return res.status(400).json({ 
-      error: `Saque mínimo é ${MIN_WITHDRAW_STK} STK` 
-    });
+    return res.status(400).json({ error: `Saque mínimo é ${MIN_WITHDRAW_STK} STK` });
   }
-
   if (numAmount > user.stkBalance) {
     return res.status(400).json({ error: 'Insufficient STK balance' });
   }
@@ -314,9 +356,18 @@ app.post('/api/wallet/withdraw', auth, (req, res) => {
   });
 });
 
-app.get('/api/leaderboard', (req, res) => { /* mantido */ });
+// Leaderboard
+app.get('/api/leaderboard', (req, res) => {
+  const lb = Array.from(users.values()).map(user => ({
+    username: user.username,
+    stkBalance: user.stkBalance,
+    totalWins: user.totalWins
+  }));
+  lb.sort((a, b) => b.stkBalance - a.stkBalance);
+  res.json(lb.slice(0, 10));
+});
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Coin-Steak Game Server running on port ${PORT}`);
+  console.log(`✅ Coin-Steak Game Server running on port ${PORT}`);
 });
